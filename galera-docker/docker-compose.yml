@@ -1,55 +1,46 @@
-version: '3.8'
-
-# RED SIMPLIFICADA - Sin conflictos de IP
 networks:
   galera-net:
     driver: bridge
-    # Usamos una subnet MUY poco común para evitar conflictos
     ipam:
       config:
-        - subnet: 10.99.88.0/24  # Cambiado a subnet única
+        - subnet: 10.99.88.0/24
 
 services:
-  # NODO 1 - BOOTSTRAP (debe iniciarse primero y solo)
+  # NODO 1 - BOOTSTRAP (con IP FIJA explícita)
   pxc1:
     image: percona/percona-xtradb-cluster:8.0
     container_name: pxc1
     hostname: pxc1
     networks:
       galera-net:
-        ipv4_address: 10.99.88.10  # IP fija en nueva subnet
+        ipv4_address: 10.99.88.10
     
-    # VARIABLES CRÍTICAS - Solo para pxc1 (BOOTSTRAP)
     environment:
       - MYSQL_ROOT_PASSWORD=root
       - CLUSTER_NAME=galera-cluster
       - XTRABACKUP_PASSWORD=xtrabackup
-      # pxc1 es el bootstrap - NO tiene CLUSTER_JOIN
-      - BOOTSTRAP=1
-      # Configuración Galera mínima pero efectiva
-      - WSREP_CLUSTER_ADDRESS=gcomm://pxc1,pxc2,pxc3
+      # pxc1 es bootstrap - dirección completa
+      - WSREP_CLUSTER_ADDRESS=gcomm://10.99.88.10,10.99.88.11,10.99.88.12
       - WSREP_NODE_NAME=pxc1
-      - WSREP_NODE_ADDRESS=pxc1
+      - WSREP_NODE_ADDRESS=10.99.88.10
+      - BOOTSTRAP=1
     
-    # VOLÚMENES SIMPLIFICADOS - Solo datos
     volumes:
       - pxc1-data:/var/lib/mysql
     
-    # HEALTHCHECK mejorado
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
-      interval: 15s
-      timeout: 15s
-      retries: 15
-      start_period: 90s  # Más tiempo para inicializar
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 90s
     
     ports:
-      - "33061:3306"  # Puerto único para cada nodo
+      - "33061:3306"
     
     restart: unless-stopped
-    # NO tiene depends_on - es el primero
 
-  # NODO 2 - Se une al cluster
+  # NODO 2 - Usa IPs DIRECTAS, no nombres
   pxc2:
     image: percona/percona-xtradb-cluster:8.0
     container_name: pxc2
@@ -58,37 +49,35 @@ services:
       galera-net:
         ipv4_address: 10.99.88.11
     
-    # VARIABLES CRÍTICAS - Para pxc2 (DEBE unirse)
     environment:
       - MYSQL_ROOT_PASSWORD=root
       - CLUSTER_NAME=galera-cluster
       - XTRABACKUP_PASSWORD=xtrabackup
-      # pxc2 DEBE unirse a pxc1
-      - CLUSTER_JOIN=pxc1
-      # Misma configuración Galera
-      - WSREP_CLUSTER_ADDRESS=gcomm://pxc1,pxc2,pxc3
+      # ¡DIRECTO con IPs! NO usar CLUSTER_JOIN
+      - WSREP_CLUSTER_ADDRESS=gcomm://10.99.88.10,10.99.88.11,10.99.88.12
       - WSREP_NODE_NAME=pxc2
-      - WSREP_NODE_ADDRESS=pxc2
+      - WSREP_NODE_ADDRESS=10.99.88.11
     
     volumes:
       - pxc2-data:/var/lib/mysql
     
+    depends_on:
+      pxc1:
+        condition: service_healthy
+    
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
-      interval: 15s
-      timeout: 15s
-      retries: 10
+      interval: 10s
+      timeout: 10s
+      retries: 15
       start_period: 60s
     
     ports:
       - "33062:3306"
     
     restart: unless-stopped
-    depends_on:
-      pxc1:
-        condition: service_healthy  # ESPERA a que pxc1 esté sano
 
-  # NODO 3 - Se une al cluster
+  # NODO 3 - Igual, IPs DIRECTAS
   pxc3:
     image: percona/percona-xtradb-cluster:8.0
     container_name: pxc3
@@ -97,62 +86,34 @@ services:
       galera-net:
         ipv4_address: 10.99.88.12
     
-    # VARIABLES CRÍTICAS - Para pxc3 (DEBE unirse)
     environment:
       - MYSQL_ROOT_PASSWORD=root
       - CLUSTER_NAME=galera-cluster
       - XTRABACKUP_PASSWORD=xtrabackup
-      # pxc3 DEBE unirse a pxc1
-      - CLUSTER_JOIN=pxc1
-      # Misma configuración Galera
-      - WSREP_CLUSTER_ADDRESS=gcomm://pxc1,pxc2,pxc3
+      # ¡DIRECTO con IPs!
+      - WSREP_CLUSTER_ADDRESS=gcomm://10.99.88.10,10.99.88.11,10.99.88.12
       - WSREP_NODE_NAME=pxc3
-      - WSREP_NODE_ADDRESS=pxc3
+      - WSREP_NODE_ADDRESS=10.99.88.12
     
     volumes:
       - pxc3-data:/var/lib/mysql
     
+    depends_on:
+      pxc1:
+        condition: service_healthy
+    
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
-      interval: 15s
-      timeout: 15s
-      retries: 10
+      interval: 10s
+      timeout: 10s
+      retries: 15
       start_period: 60s
     
     ports:
       - "33063:3306"
     
     restart: unless-stopped
-    depends_on:
-      pxc1:
-        condition: service_healthy  # ESPERA a que pxc1 esté sano
-      pxc2:
-        condition: service_started  # Espera que pxc2 al menos haya empezado
 
-  # HAPROXY - Balanceador de carga (OPCIONAL)
-  haproxy:
-    image: haproxy:2.8-alpine
-    container_name: haproxy-galera
-    networks:
-      galera-net:
-        ipv4_address: 10.99.88.20
-    
-    depends_on:
-      - pxc1
-      - pxc2
-      - pxc3
-    
-    volumes:
-      # Configuración mínima de HAProxy
-      - ./haproxy-minimal.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-    
-    ports:
-      - "3307:3306"     # Puerto para MySQL balanceado
-      - "8404:8404"     # Puerto para estadísticas
-    
-    restart: unless-stopped
-
-# VOLÚMENES PERSISTENTES
 volumes:
   pxc1-data:
   pxc2-data:
