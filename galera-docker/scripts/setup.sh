@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 set -e
 
 ROOTPWD="rootpw" # contraseña del root, nada original xd, guardada en una variable
