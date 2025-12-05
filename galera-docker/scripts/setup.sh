@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-ROOTPWD="rootpw"
+ROOTPWD="root"
 
 echo "======================================================"
 echo "     INICIANDO CLÚSTER PERCONA XTRADB + HAPROXY (CORREGIDO)"
