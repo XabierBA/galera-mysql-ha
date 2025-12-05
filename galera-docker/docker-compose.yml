@@ -5,7 +5,7 @@ services:
     image: percona/percona-xtradb-cluster:8.0
     container_name: pxc1
     environment:
-      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_ROOT_PASSWORD=rootpw
       - CLUSTER_NAME=pxc-cluster
       - XTRABACKUP_PASSWORD=xtrabackup
     volumes:
