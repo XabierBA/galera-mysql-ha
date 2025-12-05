@@ -24,5 +24,5 @@ for n in pxc1 pxc2 pxc3; do
 done
 
 echo "======================================================"
-echo "✔ Monitoreo completado."
+echo "  Monitoreo completado."
 echo "======================================================"

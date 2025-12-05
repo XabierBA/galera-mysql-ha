@@ -5,6 +5,6 @@ echo "==========================================="
 echo "    Deteniendo clúster PXC + HAProxy"
 echo "==========================================="
 
-docker-compose down
+docker compose down
 
-echo "✔ Todos los contenedores detenidos."
+echo " Todos los contenedores detenidos."
