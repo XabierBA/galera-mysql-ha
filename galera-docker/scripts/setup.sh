@@ -4,7 +4,7 @@ set -e
 ROOTPWD="root"
 
 echo "======================================================"
-echo "     INICIANDO CLÚSTER PERCONA XTRADB + HAPROXY (CORREGIDO)"
+echo "     INICIANDO CLÚSTER PERCONA XTRADB + HAPROXY       "
 echo "======================================================"
 
 # ---------------------------------------
@@ -24,8 +24,8 @@ docker compose up -d pxc1 >/dev/null 2>&1
 # 2) ESPERA LARGA PARA PXC1
 # ---------------------------------------
 echo "[INFO] Esperando 90 segundos para que pxc1 se inicialice como cluster..."
-for i in {1..90}; do
-    echo -ne "  Esperando... $i/90 segundos\r"
+for i in {1..45}; do
+    echo -ne "  Esperando... $i/45 segundos\r"
     sleep 1
 done
 echo ""
@@ -44,16 +44,16 @@ fi
 # ---------------------------------------
 echo "[INFO] Iniciando pxc2 (uniéndose al cluster)..."
 docker compose up -d pxc2 >/dev/null 2>&1
-echo "[INFO] Esperando 45 segundos para que pxc2 se una..."
-sleep 45
+echo "[INFO] Esperando 20 segundos para que pxc2 se una..."
+sleep 20
 
 # ---------------------------------------
 # 4) INICIAR PXC3 (UNIÉNDOSE A PXC1)
 # ---------------------------------------
 echo "[INFO] Iniciando pxc3 (uniéndose al cluster)..."
 docker compose up -d pxc3 >/dev/null 2>&1
-echo "[INFO] Esperando 45 segundos para que pxc3 se una..."
-sleep 45
+echo "[INFO] Esperando 20 segundos para que pxc3 se una..."
+sleep 20
 
 # ---------------------------------------
 # 5) SALUD DE CONTENEDORES

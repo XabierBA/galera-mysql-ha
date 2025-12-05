@@ -1,0 +1,33 @@
+[mysqld]
+
+# Identificación del servidor
+server-id=3
+binlog_format=ROW
+
+# Configuración InnoDB
+default_storage_engine=InnoDB
+innodb_autoinc_lock_mode=2
+innodb_flush_log_at_trx_commit=0
+innodb_flush_method=O_DIRECT
+
+# Configuración Galera
+wsrep_provider=/usr/lib64/galera4/libgalera_smm.so
+wsrep_cluster_name=pxc-cluster
+wsrep_cluster_address=gcomm://pxc1,pxc2,pxc3
+wsrep_node_name=pxc3
+wsrep_node_address=pxc3
+wsrep_sst_method=xtrabackup-v2
+wsrep_sst_auth=root:xtrabackup
+
+# Optimización de rendimiento
+wsrep_slave_threads=8
+wsrep_certify_nonPK=1
+wsrep_max_ws_rows=131072
+wsrep_max_ws_size=1073741824
+wsrep_debug=0
+
+# SST configuration
+wsrep_sst_receive_address=pxc3:4444
+
+# Replicación paralela
+pxc_strict_mode=ENFORCING
