@@ -1,28 +1,19 @@
-networks:
-  galera-net:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 10.99.88.0/24
+version: '3.8'
 
 services:
-  # NODO 1 - BOOTSTRAP (con IP FIJA explícita)
+  # NODO 1 - BOOTSTRAP
   pxc1:
     image: percona/percona-xtradb-cluster:8.0
     container_name: pxc1
     hostname: pxc1
-    networks:
-      galera-net:
-        ipv4_address: 10.99.88.10
     
     environment:
       - MYSQL_ROOT_PASSWORD=root
       - CLUSTER_NAME=galera-cluster
       - XTRABACKUP_PASSWORD=xtrabackup
-      # pxc1 es bootstrap - dirección completa
-      - WSREP_CLUSTER_ADDRESS=gcomm://10.99.88.10,10.99.88.11,10.99.88.12
+      - WSREP_CLUSTER_ADDRESS=gcomm://pxc1,pxc2,pxc3
       - WSREP_NODE_NAME=pxc1
-      - WSREP_NODE_ADDRESS=10.99.88.10
+      - WSREP_NODE_ADDRESS=pxc1
       - BOOTSTRAP=1
     
     volumes:
@@ -33,30 +24,25 @@ services:
       interval: 10s
       timeout: 10s
       retries: 20
-      start_period: 90s
     
     ports:
       - "33061:3306"
     
     restart: unless-stopped
 
-  # NODO 2 - Usa IPs DIRECTAS, no nombres
+  # NODO 2
   pxc2:
     image: percona/percona-xtradb-cluster:8.0
     container_name: pxc2
     hostname: pxc2
-    networks:
-      galera-net:
-        ipv4_address: 10.99.88.11
     
     environment:
       - MYSQL_ROOT_PASSWORD=root
       - CLUSTER_NAME=galera-cluster
       - XTRABACKUP_PASSWORD=xtrabackup
-      # ¡DIRECTO con IPs! NO usar CLUSTER_JOIN
-      - WSREP_CLUSTER_ADDRESS=gcomm://10.99.88.10,10.99.88.11,10.99.88.12
+      - WSREP_CLUSTER_ADDRESS=gcomm://pxc1,pxc2,pxc3
       - WSREP_NODE_NAME=pxc2
-      - WSREP_NODE_ADDRESS=10.99.88.11
+      - WSREP_NODE_ADDRESS=pxc2
     
     volumes:
       - pxc2-data:/var/lib/mysql
@@ -70,30 +56,25 @@ services:
       interval: 10s
       timeout: 10s
       retries: 15
-      start_period: 60s
     
     ports:
       - "33062:3306"
     
     restart: unless-stopped
 
-  # NODO 3 - Igual, IPs DIRECTAS
+  # NODO 3
   pxc3:
     image: percona/percona-xtradb-cluster:8.0
     container_name: pxc3
     hostname: pxc3
-    networks:
-      galera-net:
-        ipv4_address: 10.99.88.12
     
     environment:
       - MYSQL_ROOT_PASSWORD=root
       - CLUSTER_NAME=galera-cluster
       - XTRABACKUP_PASSWORD=xtrabackup
-      # ¡DIRECTO con IPs!
-      - WSREP_CLUSTER_ADDRESS=gcomm://10.99.88.10,10.99.88.11,10.99.88.12
+      - WSREP_CLUSTER_ADDRESS=gcomm://pxc1,pxc2,pxc3
       - WSREP_NODE_NAME=pxc3
-      - WSREP_NODE_ADDRESS=10.99.88.12
+      - WSREP_NODE_ADDRESS=pxc3
     
     volumes:
       - pxc3-data:/var/lib/mysql
@@ -107,10 +88,31 @@ services:
       interval: 10s
       timeout: 10s
       retries: 15
-      start_period: 60s
     
     ports:
       - "33063:3306"
+    
+    restart: unless-stopped
+
+  # HAPROXY - CAMBIO CLAVE: Sin IP fija
+  haproxy:
+    image: haproxy:2.8-alpine
+    container_name: haproxy-galera
+    
+    # IMPORTANTE: HAProxy puede acceder a pxc1, pxc2, pxc3 por NOMBRE
+    # porque están en la misma red bridge por defecto
+    depends_on:
+      - pxc1
+      - pxc2
+      - pxc3
+    
+    volumes:
+      # Configuración HAProxy simple
+      - ./haproxy-simple.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    
+    ports:
+      - "3307:3306"    # Balanceador MySQL
+      - "8404:8404"    # Estadísticas
     
     restart: unless-stopped
 
